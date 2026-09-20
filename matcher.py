@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 
-SUPPORTED_OPERATORS = {"lte_by_household_size"}
+SUPPORTED_OPERATORS = {"any_truthy", "lte_by_household_size"}
 REQUIRED_PROGRAM_FIELDS = {
     "id",
     "name",
@@ -56,6 +56,18 @@ def load_programs(path: str = "programs.json") -> list[dict[str, Any]]:
                 raise ValueError(
                     f"Unsupported operator for {program_id}: {rule.get('operator')}."
                 )
+            if rule.get("operator") == "any_truthy":
+                fields = rule.get("fields")
+                if (
+                    not isinstance(fields, list)
+                    or not fields
+                    or any(not isinstance(field, str) or not field for field in fields)
+                    or len(fields) != len(set(fields))
+                ):
+                    raise ValueError(
+                        f"any_truthy for {program_id} requires a non-empty list "
+                        "of unique field names."
+                    )
 
     return programs
 
@@ -117,19 +129,28 @@ def _household_income_limit(rule: dict[str, Any], household_size: int) -> float 
 
 def _evaluate_income_rule(
     profile: dict[str, Any], rule: dict[str, Any]
-) -> tuple[bool | None, str | None]:
+) -> tuple[bool | None, str | None, str | None]:
     income = profile.get(rule.get("field"))
     household_size = profile.get(rule.get("household_size_field"))
     if not _is_number(income) or not isinstance(household_size, int):
-        return None, None
+        return None, None, None
     if isinstance(household_size, bool) or income < 0 or household_size < 1:
-        return None, None
+        return None, None, None
 
     limit = _household_income_limit(rule, household_size)
     if limit is None:
-        return None, None
+        values = rule.get("values")
+        try:
+            largest_configured_size = max(int(size) for size in values)
+        except (TypeError, ValueError):
+            return None, None, None
+        if household_size > largest_configured_size:
+            unresolved_note = rule.get("unresolved_note")
+            if isinstance(unresolved_note, str) and unresolved_note:
+                return None, None, unresolved_note
+        return None, None, None
     if float(income) > limit:
-        return False, None
+        return False, None, None
 
     reason_template = str(
         rule.get(
@@ -137,11 +158,39 @@ def _evaluate_income_rule(
             "Your reported income is within the configured general prescreen amount.",
         )
     )
-    return True, reason_template.format(
-        annual_income=income,
-        household_size=household_size,
-        income_limit=limit,
+    return (
+        True,
+        reason_template.format(
+            annual_income=income,
+            household_size=household_size,
+            income_limit=limit,
+        ),
+        None,
     )
+
+
+def _evaluate_any_truthy_rule(
+    profile: dict[str, Any], rule: dict[str, Any]
+) -> tuple[bool | None, str | None, str | None]:
+    """Evaluate explicit booleans without treating missing values as truthy."""
+    fields = rule.get("fields")
+    if not isinstance(fields, list) or not fields:
+        return None, None, None
+
+    has_unresolved_value = False
+    for field in fields:
+        if not isinstance(field, str) or field not in profile:
+            has_unresolved_value = True
+            continue
+        value = profile[field]
+        if value is True:
+            return True, str(rule.get("reason", "A relevant condition was reported.")), None
+        if value is not False:
+            has_unresolved_value = True
+
+    if has_unresolved_value:
+        return None, None, None
+    return False, None, None
 
 
 def find_matches(
@@ -167,6 +216,7 @@ def find_matches(
 
         matched_reasons = [geographic_reason]
         unmet_reasons: list[str] = []
+        needs_verification = list(program.get("verification_notes", []))
         should_show = True
 
         rules = program.get("rules", [])
@@ -178,9 +228,15 @@ def find_matches(
                 break
 
             if rule.get("operator") == "lte_by_household_size":
-                outcome, reason = _evaluate_income_rule(user_profile, rule)
+                outcome, reason, unresolved_note = _evaluate_income_rule(
+                    user_profile, rule
+                )
+            elif rule.get("operator") == "any_truthy":
+                outcome, reason, unresolved_note = _evaluate_any_truthy_rule(
+                    user_profile, rule
+                )
             else:
-                outcome, reason = None, None
+                outcome, reason, unresolved_note = None, None, None
 
             if outcome is True and reason:
                 matched_reasons.append(reason)
@@ -189,6 +245,8 @@ def find_matches(
                 if rule.get("required", False):
                     should_show = False
                     break
+            elif unresolved_note and rule.get("show_when_unresolved", False):
+                needs_verification.append(unresolved_note)
             elif rule.get("required", False):
                 # Missing or unusable data cannot be treated as evidence of eligibility.
                 should_show = False
@@ -206,7 +264,7 @@ def find_matches(
             "score": len(matched_reasons),
             "matched_reasons": matched_reasons,
             "unmet_reasons": unmet_reasons,
-            "needs_verification": list(program.get("verification_notes", [])),
+            "needs_verification": needs_verification,
             "source_name": program["source_name"],
             "source_url": program["source_url"],
             "last_checked": program["last_checked"],
