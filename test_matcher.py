@@ -38,8 +38,15 @@ class SnapMatcherTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.programs = load_programs(str(PROGRAMS_PATH))
 
+    def snap_matches(self, profile: dict) -> list[dict]:
+        return [
+            match
+            for match in find_matches(profile, self.programs)
+            if match["program_id"] == "florida-snap"
+        ]
+
     def test_florida_household_of_three_at_27000_is_possible_match(self) -> None:
-        matches = find_matches(make_profile(), self.programs)
+        matches = self.snap_matches(make_profile())
 
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0]["program_id"], "florida-snap")
@@ -47,10 +54,7 @@ class SnapMatcherTests(unittest.TestCase):
         self.assertTrue(matches[0]["needs_verification"])
 
     def test_florida_household_of_three_at_60000_is_not_returned(self) -> None:
-        matches = find_matches(
-            make_profile(annual_income=60000),
-            self.programs,
-        )
+        matches = self.snap_matches(make_profile(annual_income=60000))
 
         self.assertEqual(matches, [])
 
@@ -60,13 +64,11 @@ class SnapMatcherTests(unittest.TestCase):
         self.assertEqual(matches, [])
 
     def test_household_of_nine_uses_additional_person_amount(self) -> None:
-        at_limit = find_matches(
-            make_profile(household_size=9, annual_income=119300),
-            self.programs,
+        at_limit = self.snap_matches(
+            make_profile(household_size=9, annual_income=119300)
         )
-        above_limit = find_matches(
-            make_profile(household_size=9, annual_income=119301),
-            self.programs,
+        above_limit = self.snap_matches(
+            make_profile(household_size=9, annual_income=119301)
         )
 
         self.assertEqual(len(at_limit), 1)
@@ -78,7 +80,7 @@ class SnapMatcherTests(unittest.TestCase):
             with self.subTest(missing_field=missing_field):
                 profile = make_profile()
                 profile.pop(missing_field)
-                self.assertEqual(find_matches(profile, self.programs), [])
+                self.assertEqual(self.snap_matches(profile), [])
 
 
 class WicMatcherTests(unittest.TestCase):
@@ -170,6 +172,80 @@ class WicMatcherTests(unittest.TestCase):
         with mock.patch.object(Path, "open", return_value=invalid_json):
             with self.assertRaisesRegex(ValueError, "any_truthy"):
                 load_programs("invalid-programs.json")
+
+
+class RemainingResourcesIntegrationTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.programs = load_programs(str(PROGRAMS_PATH))
+
+    def results_by_id(self, **overrides: object) -> dict[str, dict]:
+        return {
+            match["program_id"]: match
+            for match in find_matches(make_profile(**overrides), self.programs)
+        }
+
+    def test_gainesville_veteran_with_child_under_five_returns_all_four(self) -> None:
+        results = self.results_by_id(
+            zip_code="32601",
+            veteran=True,
+            dependent_children=1,
+            has_child_under_5=True,
+            annual_income=60000,
+        )
+        expected_ids = {
+            "alachua-county-veteran-services",
+            "florida-kidcare",
+            "alachua-county-social-services",
+            "gainesville-housing-community-development",
+        }
+
+        for program_id in expected_ids:
+            with self.subTest(program_id=program_id):
+                self.assertIn(program_id, results)
+                self.assertEqual(results[program_id]["status"], "possible_match")
+        self.assertIsNone(results["alachua-county-veteran-services"]["apply_url"])
+        self.assertIsNone(
+            results["gainesville-housing-community-development"]["apply_url"]
+        )
+
+    def test_alachua_non_veteran_with_child_excludes_veteran_and_gainesville(self) -> None:
+        results = self.results_by_id(
+            zip_code="32615",
+            veteran=False,
+            dependent_children=1,
+            has_child_under_5=False,
+            annual_income=60000,
+        )
+
+        self.assertIn("florida-kidcare", results)
+        self.assertIn("alachua-county-social-services", results)
+        self.assertNotIn("alachua-county-veteran-services", results)
+        self.assertNotIn("gainesville-housing-community-development", results)
+
+    def test_florida_outside_alachua_with_child_returns_only_kidcare_locally(self) -> None:
+        results = self.results_by_id(
+            zip_code="33101",
+            veteran=True,
+            dependent_children=1,
+            has_child_under_5=False,
+            annual_income=60000,
+        )
+
+        self.assertIn("florida-kidcare", results)
+        self.assertNotIn("alachua-county-veteran-services", results)
+        self.assertNotIn("alachua-county-social-services", results)
+        self.assertNotIn("gainesville-housing-community-development", results)
+
+    def test_florida_with_zero_dependent_children_excludes_kidcare(self) -> None:
+        results = self.results_by_id(
+            zip_code="33101",
+            dependent_children=0,
+            has_child_under_5=False,
+            annual_income=60000,
+        )
+
+        self.assertNotIn("florida-kidcare", results)
 
 
 if __name__ == "__main__":
