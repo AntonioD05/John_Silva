@@ -1,0 +1,47 @@
+[
+  {
+    "id": "florida-snap",
+    "name": "Supplemental Nutrition Assistance Program (SNAP)",
+    "category": "food",
+    "level": "state",
+    "description": "Monthly food assistance administered by the Florida Department of Children and Families.",
+    "service_area": {
+      "type": "zip_prefix_range",
+      "min_prefix": 320,
+      "max_prefix": 349,
+      "reason": "Your ZIP code appears to be within Florida's ZIP range. The agency must confirm residency."
+    },
+    "rules": [
+      {
+        "field": "annual_income",
+        "household_size_field": "household_size",
+        "operator": "lte_by_household_size",
+        "values": {
+          "1": 31300,
+          "2": 42300,
+          "3": 53300,
+          "4": 64300,
+          "5": 75300,
+          "6": 86300,
+          "7": 97300,
+          "8": 108300
+        },
+        "additional_person_amount": 11000,
+        "required": true,
+        "reason": "Your reported annual household income (${annual_income:,.0f}) is at or below the general gross-income prescreen amount (${income_limit:,.0f}) for a household of {household_size}.",
+        "unmet_reason": "Your reported annual household income is above the configured general gross-income prescreen amount."
+      }
+    ],
+    "verification_notes": [
+      "This is only a general gross-income prescreen; the Florida Department of Children and Families must determine eligibility.",
+      "Student restrictions and exemptions may apply.",
+      "Work requirements may apply.",
+      "Allowable deductions and net-income calculations may change the agency's assessment.",
+      "Asset rules, citizenship or qualified noncitizen status, identity, residency, household composition, and other program conditions require agency verification."
+    ],
+    "source_name": "Florida Department of Children and Families",
+    "source_url": "https://www.myflfamilies.com/services/public-assistance/supplemental-nutrition-assistance-program-snap/snap-eligibility",
+    "apply_url": "https://myaccess.myflfamilies.com/",
+    "last_checked": "2026-09-20"
+  }
+]
