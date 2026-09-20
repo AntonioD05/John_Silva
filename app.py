@@ -166,6 +166,16 @@ def render_questionnaire() -> None:
             employment_status = st.selectbox("Employment status", ["", "Full-time", "Part-time", "Unemployed"], format_func=lambda option: "Select employment option" if option == "" else option)
             disability_status = st.radio("Do you have a disability?", ["No", "Yes"], horizontal=True)
             veteran_status = st.radio("Are you a veteran?", ["No", "Yes"], horizontal=True)
+            pregnant_postpartum_or_breastfeeding = st.radio(
+                "Is anyone applying pregnant, breastfeeding, or recently pregnant?",
+                ["No", "Yes"],
+                horizontal=True,
+            )
+            has_child_under_5 = st.radio(
+                "Are you applying for an infant or child under age five?",
+                ["No", "Yes"],
+                horizontal=True,
+            )
         submitted = st.form_submit_button("Find resources", type="primary", use_container_width=True)
 
     if submitted:
@@ -179,6 +189,8 @@ def render_questionnaire() -> None:
             "employment_status": employment_status,
             "disability": disability_status == "Yes",
             "veteran": veteran_status == "Yes",
+            "pregnant_postpartum_or_breastfeeding": pregnant_postpartum_or_breastfeeding == "Yes",
+            "has_child_under_5": has_child_under_5 == "Yes",
         }
         profile, errors = validate_profile(raw_profile)
         if errors:
