@@ -1,0 +1,51 @@
+:root {
+    --ink: #17322d;
+    --muted: #62736d;
+    --paper: #f6f7f1;
+    --surface: #ffffff;
+    --mint: #d8eee3;
+    --line: #dbe4de;
+    --coral: #d86b4e;
+    --coral-dark: #a94a34;
+}
+
+.stApp { background: var(--paper); color: var(--ink); }
+[data-testid="stHeader"] { background: transparent; }
+.block-container { max-width: 1060px; padding: 2.2rem 2rem 5rem; }
+.topline { display: flex; align-items: center; gap: .7rem; color: var(--ink); font-size: .86rem; font-weight: 700; letter-spacing: .02em; }
+.mark { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--coral); color: white; font-size: .7rem; }
+.topline-note { margin-left: auto; color: var(--muted); font-size: .72rem; font-weight: 500; }
+.hero { max-width: 720px; padding: 5rem 0 3.5rem; }
+.eyebrow, .section-kicker { color: var(--coral-dark); font-size: .72rem; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+.hero h1 { margin: .7rem 0 1rem; color: var(--ink); font-family: Georgia, serif; font-size: clamp(2.6rem, 6vw, 5rem); font-weight: 400; letter-spacing: 0; line-height: .98; }
+.hero p { max-width: 560px; color: var(--muted); font-size: 1.1rem; line-height: 1.6; }
+h2, h3 { color: var(--ink); letter-spacing: 0; }
+.section-kicker { margin-top: .5rem; }
+.stCaption, [data-testid="stCaptionContainer"] { color: var(--muted); }
+.stForm { margin-top: 1.4rem; padding: 1.8rem; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.72); }
+label, .stRadio label, .stSelectbox label, .stNumberInput label, .stTextInput label { color: var(--ink) !important; font-weight: 650 !important; }
+div[data-baseweb="input"], div[data-baseweb="select"] { border-color: var(--line); border-radius: 4px; background: var(--surface); }
+button[kind="primary"] { min-height: 3rem; margin-top: 1.5rem; border: 0; border-radius: 4px; background: var(--coral); color: white; font-weight: 750; }
+button[kind="primary"]:hover { background: var(--coral-dark); }
+.trust-row { display: flex; flex-wrap: wrap; gap: 1rem 2.5rem; margin-top: 2.5rem; color: var(--muted); font-size: .8rem; }
+.trust-row span::before { content: "//"; margin-right: .55rem; color: var(--coral); font-weight: 800; }
+.category-heading { margin: 2rem 0 .7rem; color: var(--coral-dark); font-size: .75rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.resource-card { margin: 0 0 .8rem; padding: 1.35rem 1.5rem 1.15rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 8px 22px rgba(23,50,45,.04); }
+.resource-card h3 { margin: .7rem 0 .35rem; font-size: 1.22rem; }
+.card-meta { display: flex; align-items: center; gap: .55rem; }
+.category { color: var(--muted); font-size: .76rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+.status { padding: .28rem .55rem; border-radius: 99px; background: var(--mint); color: var(--ink); font-size: .7rem; font-weight: 800; }
+.description { margin: 0 0 .9rem; color: var(--muted); line-height: 1.5; }
+details { border-top: 1px solid var(--line); padding-top: .8rem; }
+summary { cursor: pointer; color: var(--ink); font-size: .85rem; font-weight: 750; }
+.explanation { margin-top: .9rem; color: var(--muted); font-size: .84rem; line-height: 1.5; }
+.explanation strong { color: var(--ink); }
+.explanation ul { margin: .35rem 0 .8rem; padding-left: 1.2rem; }
+.card-links { display: flex; flex-wrap: wrap; gap: .8rem 1.4rem; margin-top: 1.1rem; font-size: .84rem; font-weight: 750; }
+.card-links a { color: var(--coral-dark); text-decoration: none; }
+.card-links a:hover { text-decoration: underline; }
+.secondary-link { color: var(--ink) !important; }
+.checked { margin-top: .9rem; color: var(--muted); font-size: .7rem; }
+.disclaimer, .empty-state { margin-top: 2rem; padding: 1rem 1.2rem; border-left: 3px solid var(--coral); background: #fff9f2; color: var(--muted); font-size: .82rem; line-height: 1.55; }
+.disclaimer strong { color: var(--ink); }
+@media (max-width: 640px) { .block-container { padding: 1.2rem 1rem 3rem; } .hero { padding: 3.5rem 0 2.5rem; } .hero h1 { font-size: 3rem; } .stForm { padding: 1rem; } .topline-note { display: none; } }
