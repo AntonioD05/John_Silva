@@ -2,13 +2,23 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import logging
 import os
+import threading
+import time
 from typing import Any
 
 
 SUPPORTED_LANGUAGES = ("English", "Spanish", "Haitian Creole")
 DEFAULT_MODEL = "gemini-3.8-flash"
+CACHE_TTL_SECONDS = 3_600
+CACHE_MAX_ENTRIES = 128
+
+LOGGER = logging.getLogger(__name__)
+_GUIDE_CACHE: dict[str, tuple[float, str]] = {}
+_GUIDE_CACHE_LOCK = threading.Lock()
 
 SYSTEM_INSTRUCTION = """
 You organize and translate a deterministic list of public resources.
@@ -185,6 +195,62 @@ def _safe_matches(matches: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+def _guide_cache_key(language: str, safe_matches: list[dict[str, Any]]) -> str:
+    """Hash only the language and privacy-minimized program data."""
+    payload = json.dumps(
+        {"language": language, "matches": safe_matches},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _get_cached_guide(cache_key: str) -> dict[str, Any] | None:
+    now = time.monotonic()
+    with _GUIDE_CACHE_LOCK:
+        cached = _GUIDE_CACHE.get(cache_key)
+        if cached is None:
+            return None
+        created_at, serialized_guide = cached
+        if now - created_at > CACHE_TTL_SECONDS:
+            del _GUIDE_CACHE[cache_key]
+            return None
+    return json.loads(serialized_guide)
+
+
+def _cache_guide(cache_key: str, guide: dict[str, Any]) -> None:
+    serialized_guide = json.dumps(guide, ensure_ascii=False)
+    with _GUIDE_CACHE_LOCK:
+        if len(_GUIDE_CACHE) >= CACHE_MAX_ENTRIES:
+            oldest_key = min(_GUIDE_CACHE, key=lambda key: _GUIDE_CACHE[key][0])
+            del _GUIDE_CACHE[oldest_key]
+        _GUIDE_CACHE[cache_key] = (time.monotonic(), serialized_guide)
+
+
+def _log_gemini_exception(error: Exception) -> None:
+    """Log a bounded status summary without request or credential data."""
+    status = getattr(error, "status_code", None)
+    if status is None:
+        status = getattr(error, "code", None)
+    message = getattr(error, "message", None)
+    if not message and isinstance(error, TimeoutError):
+        message = "Request timed out."
+    elif not message and isinstance(error, json.JSONDecodeError):
+        message = "Model response was not valid JSON."
+    elif not message and isinstance(error, ValueError):
+        message = str(error)
+    elif not message:
+        message = "No safe message available."
+    safe_message = " ".join(str(message).split())[:500]
+    LOGGER.warning(
+        "Gemini guide request failed: type=%s status=%s message=%s",
+        type(error).__name__,
+        status if status is not None else "unknown",
+        safe_message,
+    )
+
+
 def _response_schema(program_ids: list[str]) -> dict[str, Any]:
     return {
         "type": "object",
@@ -291,31 +357,43 @@ def generate_action_guide_with_status(
     if not key:
         return fallback, True
 
+    cache_key = _guide_cache_key(selected_language, safe_matches)
+    cached_guide = _get_cached_guide(cache_key)
+    if cached_guide is not None:
+        return cached_guide, False
+
     try:
         from google import genai
+        from google.genai import types as genai_types
 
-        client = genai.Client(api_key=key)
-        interaction = client.interactions.create(
-            model=os.getenv("GEMINI_MODEL", DEFAULT_MODEL),
-            store=False,
-            system_instruction=SYSTEM_INSTRUCTION,
-            input=json.dumps(
-                {
-                    "language": selected_language,
-                    "programs_in_required_order": safe_matches,
-                },
-                ensure_ascii=False,
-            ),
-            response_format={
-                "type": "text",
-                "mime_type": "application/json",
-                "schema": _response_schema(
-                    [match["program_id"] for match in safe_matches]
-                ),
-            },
-            timeout=30,
+        http_options = genai_types.HttpOptions(
+            timeout=15_000,
+            retry_options=genai_types.HttpRetryOptions(attempts=1),
         )
+        with genai.Client(api_key=key, http_options=http_options) as client:
+            interaction = client.interactions.create(
+                model=os.getenv("GEMINI_MODEL", DEFAULT_MODEL),
+                store=False,
+                system_instruction=SYSTEM_INSTRUCTION,
+                input=json.dumps(
+                    {
+                        "language": selected_language,
+                        "programs_in_required_order": safe_matches,
+                    },
+                    ensure_ascii=False,
+                ),
+                response_format={
+                    "type": "text",
+                    "mime_type": "application/json",
+                    "schema": _response_schema(
+                        [match["program_id"] for match in safe_matches]
+                    ),
+                },
+            )
         guide = json.loads(interaction.output_text)
-        return _validate_guide(guide, matches), False
-    except Exception:
+        validated_guide = _validate_guide(guide, matches)
+        _cache_guide(cache_key, validated_guide)
+        return validated_guide, False
+    except Exception as error:
+        _log_gemini_exception(error)
         return fallback, True
