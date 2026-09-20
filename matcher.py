@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 
-SUPPORTED_OPERATORS = {"any_truthy", "lte_by_household_size"}
+SUPPORTED_OPERATORS = {"any_truthy", "gte", "lte_by_household_size"}
 REQUIRED_PROGRAM_FIELDS = {
     "id",
     "name",
@@ -18,6 +18,7 @@ REQUIRED_PROGRAM_FIELDS = {
     "verification_notes",
     "source_name",
     "source_url",
+    "apply_url",
     "last_checked",
 }
 
@@ -47,6 +48,27 @@ def load_programs(path: str = "programs.json") -> list[dict[str, Any]]:
             raise ValueError(f"Duplicate program id: {program_id}.")
         seen_ids.add(program_id)
 
+        service_area = program["service_area"]
+        if not isinstance(service_area, dict):
+            raise ValueError(f"Service area for {program_id} must be an object.")
+        if service_area.get("type") == "zip_codes":
+            zip_codes = service_area.get("values")
+            if (
+                not isinstance(zip_codes, list)
+                or not zip_codes
+                or any(
+                    not isinstance(zip_code, str)
+                    or len(zip_code) != 5
+                    or not zip_code.isdigit()
+                    for zip_code in zip_codes
+                )
+                or len(zip_codes) != len(set(zip_codes))
+            ):
+                raise ValueError(
+                    f"zip_codes for {program_id} requires a non-empty list "
+                    "of unique five-digit ZIP codes."
+                )
+
         if not isinstance(program["rules"], list):
             raise ValueError(f"Rules for {program_id} must be an array.")
         for rule in program["rules"]:
@@ -68,6 +90,19 @@ def load_programs(path: str = "programs.json") -> list[dict[str, Any]]:
                         f"any_truthy for {program_id} requires a non-empty list "
                         "of unique field names."
                     )
+            if rule.get("operator") == "gte":
+                field = rule.get("field")
+                value = rule.get("value")
+                if (
+                    not isinstance(field, str)
+                    or not field
+                    or not isinstance(value, (int, float))
+                    or isinstance(value, bool)
+                ):
+                    raise ValueError(
+                        f"gte for {program_id} requires a field name and "
+                        "a numeric, non-boolean value."
+                    )
 
     return programs
 
@@ -84,17 +119,26 @@ def _matches_service_area(
     if len(zip_code) != 5 or not zip_code.isdigit():
         return False, None
 
-    if service_area.get("type") != "zip_prefix_range":
+    area_type = service_area.get("type")
+    if area_type == "zip_prefix_range":
+        prefix = int(zip_code[:3])
+        minimum = service_area.get("min_prefix")
+        maximum = service_area.get("max_prefix")
+        if not isinstance(minimum, int) or not isinstance(maximum, int):
+            return False, None
+        is_match = minimum <= prefix <= maximum
+    elif area_type == "zip_codes":
+        values = service_area.get("values")
+        if not isinstance(values, list):
+            return False, None
+        is_match = zip_code in values
+    else:
         return False, None
 
-    prefix = int(zip_code[:3])
-    minimum = service_area.get("min_prefix")
-    maximum = service_area.get("max_prefix")
-    if not isinstance(minimum, int) or not isinstance(maximum, int):
-        return False, None
-
-    if minimum <= prefix <= maximum:
-        return True, str(service_area.get("reason", "Your ZIP code matches the service area."))
+    if is_match:
+        return True, str(
+            service_area.get("reason", "Your ZIP code matches the service-area prescreen.")
+        )
     return False, None
 
 
@@ -193,6 +237,23 @@ def _evaluate_any_truthy_rule(
     return False, None, None
 
 
+def _evaluate_gte_rule(
+    profile: dict[str, Any], rule: dict[str, Any]
+) -> tuple[bool | None, str | None, str | None]:
+    """Compare numeric profile data without coercing booleans or strings."""
+    field = rule.get("field")
+    threshold = rule.get("value")
+    if not isinstance(field, str) or field not in profile:
+        return None, None, None
+
+    profile_value = profile[field]
+    if not _is_number(profile_value) or not _is_number(threshold):
+        return None, None, None
+    if profile_value >= threshold:
+        return True, str(rule.get("reason", "A reported value meets the prescreen.")), None
+    return False, None, None
+
+
 def find_matches(
     user_profile: dict[str, Any], programs: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
@@ -235,6 +296,10 @@ def find_matches(
                 outcome, reason, unresolved_note = _evaluate_any_truthy_rule(
                     user_profile, rule
                 )
+            elif rule.get("operator") == "gte":
+                outcome, reason, unresolved_note = _evaluate_gte_rule(
+                    user_profile, rule
+                )
             else:
                 outcome, reason, unresolved_note = None, None, None
 
@@ -267,10 +332,9 @@ def find_matches(
             "needs_verification": needs_verification,
             "source_name": program["source_name"],
             "source_url": program["source_url"],
+            "apply_url": program.get("apply_url"),
             "last_checked": program["last_checked"],
         }
-        if program.get("apply_url"):
-            result["apply_url"] = program["apply_url"]
         matches.append(result)
 
     return sorted(matches, key=lambda match: (-match["score"], match["name"]))

@@ -98,5 +98,199 @@
     "source_url": "https://www.floridahealth.gov/individual-family-health/womens-health/wic/",
     "apply_url": "https://alachua.floridahealth.gov/programs-services/clinical-and-nutrition-services/wic/apply-for-wic/",
     "last_checked": "2026-09-20"
+  },
+  {
+    "id": "alachua-county-veteran-services",
+    "name": "Alachua County Veteran Services",
+    "category": "veterans",
+    "level": "county",
+    "description": "Assistance and advocacy for Alachua County veterans seeking earned benefits and connections to other resources.",
+    "service_area": {
+      "type": "zip_codes",
+      "values": [
+        "32044",
+        "32601",
+        "32603",
+        "32604",
+        "32605",
+        "32606",
+        "32607",
+        "32608",
+        "32609",
+        "32610",
+        "32611",
+        "32612",
+        "32614",
+        "32615",
+        "32616",
+        "32618",
+        "32622",
+        "32627",
+        "32631",
+        "32633",
+        "32635",
+        "32640",
+        "32641",
+        "32643",
+        "32653",
+        "32655",
+        "32658",
+        "32662",
+        "32666",
+        "32667",
+        "32669",
+        "32694"
+      ],
+      "reason": "Your ZIP code is associated with the Alachua County service area. The county must confirm residency."
+    },
+    "rules": [
+      {
+        "fields": [
+          "veteran"
+        ],
+        "operator": "any_truthy",
+        "required": true,
+        "reason": "You reported that you are a veteran.",
+        "unmet_reason": "You did not report veteran status."
+      }
+    ],
+    "verification_notes": [
+      "Veteran status, discharge information, dependent or survivor status, and eligibility for specific benefits require review by a Veteran Service Officer.",
+      "ZIP matching is only a service-area prescreen and does not verify Alachua County residency or jurisdiction.",
+      "Program availability and eligibility have not been evaluated by this tool."
+    ],
+    "source_name": "Alachua County Veteran Services",
+    "source_url": "https://alachuacounty.us/Depts/CSS/Veterans/Pages/VeteransServices.aspx",
+    "apply_url": null,
+    "last_checked": "2026-09-20"
+  },
+  {
+    "id": "florida-kidcare",
+    "name": "Florida KidCare",
+    "category": "health",
+    "level": "state",
+    "description": "Income-based health and dental coverage programs for Florida children from birth until their 19th birthday.",
+    "service_area": {
+      "type": "zip_prefix_range",
+      "min_prefix": 320,
+      "max_prefix": 349,
+      "reason": "Your ZIP code appears to be within Florida's ZIP range. Florida KidCare must confirm residency."
+    },
+    "rules": [
+      {
+        "field": "dependent_children",
+        "operator": "gte",
+        "value": 1,
+        "required": true,
+        "reason": "You reported at least one dependent child.",
+        "unmet_reason": "You did not report any dependent children."
+      },
+      {
+        "fields": [
+          "has_child_under_5"
+        ],
+        "operator": "any_truthy",
+        "required": false,
+        "reason": "You reported an infant or child under age five.",
+        "unmet_reason": "You did not report a child under age five."
+      }
+    ],
+    "verification_notes": [
+      "Florida KidCare must confirm each child's age, Florida residency, insurance or institutional status, and final program eligibility.",
+      "Household income, household size, and the program's adjusted-income rules require official review and were not evaluated by this tool.",
+      "Citizenship or eligible immigration status, identity, Social Security number requirements, and other documentation must be verified by Florida KidCare."
+    ],
+    "source_name": "Florida KidCare",
+    "source_url": "https://floridakidcare.org/requirements/",
+    "apply_url": "https://portal.floridakidcare.org/en/case-auth",
+    "last_checked": "2026-09-20"
+  },
+  {
+    "id": "alachua-county-social-services",
+    "name": "Alachua County Social Services",
+    "category": "local support",
+    "level": "county",
+    "description": "County safety-net services offering information and referrals, access to health services, and temporary assistance for eligible residents.",
+    "service_area": {
+      "type": "zip_codes",
+      "values": [
+        "32044",
+        "32601",
+        "32603",
+        "32604",
+        "32605",
+        "32606",
+        "32607",
+        "32608",
+        "32609",
+        "32610",
+        "32611",
+        "32612",
+        "32614",
+        "32615",
+        "32616",
+        "32618",
+        "32622",
+        "32627",
+        "32631",
+        "32633",
+        "32635",
+        "32640",
+        "32641",
+        "32643",
+        "32653",
+        "32655",
+        "32658",
+        "32662",
+        "32666",
+        "32667",
+        "32669",
+        "32694"
+      ],
+      "reason": "Your ZIP code is associated with the Alachua County service area. The county must confirm residency."
+    },
+    "rules": [],
+    "verification_notes": [
+      "Program availability and eligibility have not been evaluated by this tool.",
+      "ZIP matching is only a service-area prescreen and does not verify Alachua County residency or jurisdiction.",
+      "County staff must review income, assets, household circumstances, documentation, prior assistance, and program-specific requirements."
+    ],
+    "source_name": "Alachua County Social Services",
+    "source_url": "https://alachuacounty.us/depts/css/socialservices/Pages/SocialServices.aspx",
+    "apply_url": "https://alachuacounty.us/Depts/CSS/SocialServices/Pages/ApplicationScreener.aspx",
+    "last_checked": "2026-09-20"
+  },
+  {
+    "id": "gainesville-housing-community-development",
+    "name": "Gainesville Housing & Community Development",
+    "category": "housing",
+    "level": "city",
+    "description": "City housing resources that may include down-payment assistance, foreclosure intervention, home replacement, rehabilitation, and other affordable-housing programs.",
+    "service_area": {
+      "type": "zip_codes",
+      "values": [
+        "32601",
+        "32603",
+        "32605",
+        "32606",
+        "32607",
+        "32608",
+        "32609",
+        "32611",
+        "32641",
+        "32653"
+      ],
+      "reason": "Your ZIP code is associated with the Gainesville service area. The city must confirm jurisdiction."
+    },
+    "rules": [],
+    "verification_notes": [
+      "Program availability and eligibility have not been evaluated by this tool.",
+      "ZIP matching is only a service-area prescreen and does not verify City of Gainesville residency or jurisdiction.",
+      "The city must confirm which housing programs are open and review income, property, occupancy, ownership or tenancy, funding, and other program-specific requirements."
+    ],
+    "source_name": "City of Gainesville Housing & Community Development",
+    "source_url": "https://www.gainesvillefl.gov/Government-Pages/Government/Departments/Housing-Community-Development",
+    "apply_url": null,
+    "last_checked": "2026-09-20"
   }
 ]
