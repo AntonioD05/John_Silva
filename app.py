@@ -11,6 +11,8 @@ from typing import Any
 
 import streamlit as st
 
+from ai_guide import SUPPORTED_LANGUAGES, generate_action_guide_with_status
+
 
 ROOT = Path(__file__).parent
 DISCLAIMER = (
@@ -18,6 +20,36 @@ DISCLAIMER = (
     "provide legal or financial advice. Requirements and program availability may "
     "change. Confirm details with the administering agency."
 )
+
+GUIDE_UI_TEXT = {
+    "English": {
+        "title": "Your next-step guide",
+        "button": "✨ Create my next-step guide",
+        "spinner": "Organizing your next steps...",
+        "question": "Useful question to ask",
+        "privacy": "Optional: This sends only matched program names, descriptions, and verification notes—not your raw questionnaire answers or official links. A local fallback is used if Gemini is unavailable.",
+        "fallback": "Gemini was unavailable, so this checklist was built locally from the verified program data.",
+        "generated": "Organized by Gemini from the verified matches shown above.",
+    },
+    "Spanish": {
+        "title": "Su guía de próximos pasos",
+        "button": "✨ Crear mi guía de próximos pasos",
+        "spinner": "Organizando sus próximos pasos...",
+        "question": "Pregunta útil para hacer",
+        "privacy": "Opcional: cuando Gemini está configurado, solo se envían los nombres, descripciones y notas de verificación de los programas, no sus respuestas completas ni los enlaces oficiales. Si Gemini no está disponible, se usa una guía local.",
+        "fallback": "Gemini no estaba disponible, así que esta lista se creó localmente con los datos verificados de los programas.",
+        "generated": "Organizado por Gemini a partir de los resultados verificados que aparecen arriba.",
+    },
+    "Haitian Creole": {
+        "title": "Gid pou pwochen etap ou",
+        "button": "✨ Kreye gid pou pwochen etap mwen",
+        "spinner": "N ap òganize pwochen etap ou yo...",
+        "question": "Kesyon itil pou poze",
+        "privacy": "Opsyonèl: lè Gemini konfigire, se sèlman non pwogram yo, deskripsyon yo, ak nòt verifikasyon yo ki voye, pa repons konplè ou yo oswa lyen ofisyèl yo. Si Gemini pa disponib, aplikasyon an itilize yon gid lokal.",
+        "fallback": "Gemini pa t disponib, kidonk lis sa a te fèt lokalman ak done pwogram ki verifye yo.",
+        "generated": "Gemini òganize sa apati rezilta verifye ki anlè yo.",
+    },
+}
 
 
 def inject_styles() -> None:
@@ -241,6 +273,71 @@ def render_result_card(match: dict[str, Any]) -> None:
     )
 
 
+def get_gemini_api_key() -> str | None:
+    """Read the deployment secret without requiring it for normal app startup."""
+    try:
+        key = str(st.secrets.get("GEMINI_API_KEY", "")).strip()
+    except Exception:
+        return None
+    return key or None
+
+
+def render_action_guide(matches: list[dict[str, Any]]) -> None:
+    """Offer an optional constrained guide after deterministic results."""
+    st.divider()
+    language = st.selectbox("Guide language", SUPPORTED_LANGUAGES)
+    text = GUIDE_UI_TEXT[language]
+    st.caption(text["privacy"])
+
+    guide_key = json.dumps(
+        {
+            "guide_version": 2,
+            "language": language,
+            "program_ids": [str(match.get("program_id", "")) for match in matches],
+        },
+        sort_keys=True,
+    )
+    if st.button(text["button"], use_container_width=True):
+        with st.spinner(text["spinner"]):
+            guide, used_fallback = generate_action_guide_with_status(
+                matches,
+                language=language,
+                api_key=get_gemini_api_key(),
+            )
+            st.session_state["action_guide"] = guide
+            st.session_state["action_guide_used_fallback"] = used_fallback
+            st.session_state["action_guide_key"] = guide_key
+
+    if st.session_state.get("action_guide_key") != guide_key:
+        return
+    guide = st.session_state.get("action_guide")
+    if not isinstance(guide, dict):
+        return
+
+    matches_by_id = {
+        str(match.get("program_id", "")): match for match in matches
+    }
+    st.markdown(f"### {text['title']}")
+    st.caption(
+        text["fallback"]
+        if st.session_state.get("action_guide_used_fallback", True)
+        else text["generated"]
+    )
+    st.write(str(guide.get("introduction", "")))
+    for index, step in enumerate(guide.get("steps", []), start=1):
+        if not isinstance(step, dict):
+            continue
+        program = matches_by_id.get(str(step.get("program_id", "")))
+        if not program:
+            continue
+        st.markdown(f"#### {index}. {program.get('name', 'Resource')}")
+        st.write(str(step.get("action", "")))
+        st.markdown(
+            f"**{text['question']}:** {step.get('question_to_ask', '')}"
+        )
+    st.caption(str(guide.get("reminder", "")))
+
+
 def render_results() -> None:
     profile = st.session_state.get("profile")
     if not profile:
@@ -263,6 +360,7 @@ def render_results() -> None:
         st.markdown(f'<div class="category-heading">{html.escape(category)}</div>', unsafe_allow_html=True)
         for match in category_matches:
             render_result_card(match)
+    render_action_guide(matches)
 
 
 def main() -> None:
