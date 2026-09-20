@@ -26,6 +26,9 @@ h2, h3 { color: var(--ink); letter-spacing: 0; }
 .stForm { margin-top: 1.4rem; padding: 1.8rem; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.72); }
 label, .stRadio label, .stSelectbox label, .stNumberInput label, .stTextInput label { color: var(--ink) !important; font-weight: 650 !important; }
 div[data-baseweb="input"], div[data-baseweb="select"] { border-color: var(--line); border-radius: 4px; background: var(--surface); }
+div[data-testid="stForm"] [data-testid="stNumberInput"] button,
+div[data-testid="stForm"] [data-testid="stTextInput"] button { display: none; }
+div[data-testid="stForm"] [data-testid="column"] { min-width: 0; flex: 1 1 0; }
 button[kind="primary"] { min-height: 3rem; margin-top: 1.5rem; border: 0; border-radius: 4px; background: var(--coral); color: white; font-weight: 750; }
 button[kind="primary"]:hover { background: var(--coral-dark); }
 .trust-row { display: flex; flex-wrap: wrap; gap: 1rem 2.5rem; margin-top: 2.5rem; color: var(--muted); font-size: .8rem; }

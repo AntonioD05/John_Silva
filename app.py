@@ -143,7 +143,7 @@ def render_header() -> None:
         <div class="hero">
             <div class="eyebrow">GET THE HELP YOU NEED, ALL IN ONE PLACE</div>
             <h1>Find support that may be waiting for you.</h1>
-            <p>Answer a few practical questions. We will surface public programs worth investigating and show you where to verify the details.</p>
+            <p>Answer a few questions and we can match you with programs and resources that you may be eligible for.</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -158,23 +158,25 @@ def render_questionnaire() -> None:
         with first:
             zip_code = st.text_input("ZIP code", placeholder="Enter ZIP code", max_chars=5)
             age = st.number_input("Your age", min_value=0, max_value=120, value=None, placeholder="Enter age", step=1)
-            annual_income = st.number_input("Annual household income (USD)", min_value=0, value=None, placeholder="Enter income", step=1000, format="%d")
-            household_size = st.number_input("Household size", min_value=1, max_value=20, value=None, placeholder="Enter household size", step=1)
+            annual_income = st.number_input("Annual household income (USD)", min_value=0, value=None, placeholder="Enter income", format="%d")
+            household_size = st.number_input("Household size", min_value=1, max_value=20, value=None, placeholder="Enter household size")
+            dependent_children = st.number_input("Dependent children", min_value=0, max_value=20, value=None, placeholder="Enter number of children")
+            student_status = st.radio("Are you currently a student?", ["No", "Yes"], horizontal=True, index=None)
         with second:
-            dependent_children = st.number_input("Dependent children", min_value=0, max_value=20, value=None, placeholder="Enter number of children", step=1)
-            student_status = st.radio("Are you currently a student?", ["No", "Yes"], horizontal=True)
             employment_status = st.selectbox("Employment status", ["", "Full-time", "Part-time", "Unemployed"], format_func=lambda option: "Select employment option" if option == "" else option)
-            disability_status = st.radio("Do you have a disability?", ["No", "Yes"], horizontal=True)
-            veteran_status = st.radio("Are you a veteran?", ["No", "Yes"], horizontal=True)
+            disability_status = st.radio("Do you have a disability?", ["No", "Yes"], horizontal=True, index=None)
+            veteran_status = st.radio("Are you a veteran?", ["No", "Yes"], horizontal=True, index=None)
             pregnant_postpartum_or_breastfeeding = st.radio(
-                "Is anyone applying pregnant, breastfeeding, or recently pregnant?",
+                "Are you or someone in your household pregnant, breastfeeding, or recently pregnant?",
                 ["No", "Yes"],
                 horizontal=True,
+                index=None
             )
             has_child_under_5 = st.radio(
-                "Are you applying for an infant or child under age five?",
+                "Do you have a child under age five?",
                 ["No", "Yes"],
                 horizontal=True,
+                index=None
             )
         submitted = st.form_submit_button("Find resources", type="primary", use_container_width=True)
 
@@ -275,9 +277,6 @@ def main() -> None:
         if st.button("Start over"):
             st.session_state.clear()
             st.rerun()
-    else:
-        st.markdown('<div class="trust-row"><span>Private by design</span><span>Official sources</span><span>Plain-language explanations</span></div>', unsafe_allow_html=True)
-
 
 if __name__ == "__main__":
     main()
