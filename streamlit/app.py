@@ -112,14 +112,24 @@ def validate_profile(raw_profile: dict[str, Any]) -> tuple[dict[str, Any] | None
     zip_code = str(raw_profile["zip_code"]).strip()
     if len(zip_code) != 5 or not zip_code.isdigit():
         errors.append("Enter a five-digit ZIP code.")
-    if raw_profile["household_size"] < 1:
+    if raw_profile["age"] is None:
+        errors.append("Enter your age.")
+    if raw_profile["annual_income"] is None:
+        errors.append("Enter your annual household income.")
+    if raw_profile["household_size"] is None:
+        errors.append("Enter your household size.")
+    elif raw_profile["household_size"] < 1:
         errors.append("Household size must be at least 1.")
-    if raw_profile["annual_income"] < 0:
+    if raw_profile["annual_income"] is not None and raw_profile["annual_income"] < 0:
         errors.append("Annual household income cannot be negative.")
-    if raw_profile["dependent_children"] < 0:
+    if raw_profile["dependent_children"] is None:
+        errors.append("Enter the number of dependent children.")
+    elif raw_profile["dependent_children"] < 0:
         errors.append("Dependent children cannot be negative.")
-    if raw_profile["dependent_children"] > raw_profile["household_size"]:
+    if raw_profile["dependent_children"] is not None and raw_profile["household_size"] is not None and raw_profile["dependent_children"] > raw_profile["household_size"]:
         errors.append("Dependent children cannot exceed household size.")
+    if not raw_profile["employment_status"]:
+        errors.append("Select an employment option.")
     if errors:
         return None, errors
     raw_profile["zip_code"] = zip_code
@@ -129,9 +139,9 @@ def validate_profile(raw_profile: dict[str, Any]) -> tuple[dict[str, Any] | None
 def render_header() -> None:
     st.markdown(
         """
-        <div class="topline"><span class="mark">GR</span><span>Gainesville Resource Navigator</span><span class="topline-note">Civic tech prototype</span></div>
+        <div class="topline"><span class="mark">GR</span><span class="topline-name">Gainesville Resource Navigator</span></div>
         <div class="hero">
-            <div class="eyebrow">A clearer place to begin</div>
+            <div class="eyebrow">GET THE HELP YOU NEED, ALL IN ONE PLACE</div>
             <h1>Find support that may be waiting for you.</h1>
             <p>Answer a few practical questions. We will surface public programs worth investigating and show you where to verify the details.</p>
         </div>
@@ -142,20 +152,19 @@ def render_header() -> None:
 
 def render_questionnaire() -> None:
     st.markdown('<div class="section-kicker">01 / Your situation</div>', unsafe_allow_html=True)
-    st.markdown("### A short, private questionnaire")
-    st.caption("No names, documents, Social Security numbers, or accounts are needed.")
-    with st.form("resource_questionnaire"):
+    st.markdown("### Tell us about yourself")
+    with st.form("resource_questionnaire", enter_to_submit=False):
         first, second = st.columns(2)
         with first:
-            zip_code = st.text_input("ZIP code", placeholder="32601", max_chars=5)
-            age = st.number_input("Your age", min_value=0, max_value=120, value=29)
-            annual_income = st.number_input("Annual household income (USD)", min_value=0, value=27000, step=1000, format="%d")
-            household_size = st.number_input("Household size", min_value=1, max_value=20, value=3)
+            zip_code = st.text_input("ZIP code", placeholder="Enter ZIP code", max_chars=5)
+            age = st.number_input("Your age", min_value=0, max_value=120, value=None, placeholder="Enter age", step=1)
+            annual_income = st.number_input("Annual household income (USD)", min_value=0, value=None, placeholder="Enter income", step=1000, format="%d")
+            household_size = st.number_input("Household size", min_value=1, max_value=20, value=None, placeholder="Enter household size", step=1)
         with second:
-            dependent_children = st.number_input("Dependent children", min_value=0, max_value=20, value=2)
+            dependent_children = st.number_input("Dependent children", min_value=0, max_value=20, value=None, placeholder="Enter number of children", step=1)
             student_status = st.radio("Are you currently a student?", ["No", "Yes"], horizontal=True)
-            employment_status = st.selectbox("Employment status", ["Employed", "Unemployed", "Part-time", "Not currently working", "Prefer not to say"])
-            disability_status = st.radio("Do you have a disability?", ["No", "Yes", "Prefer not to say"], horizontal=True)
+            employment_status = st.selectbox("Employment status", ["", "Full-time", "Part-time", "Unemployed"], format_func=lambda option: "Select employment option" if option == "" else option)
+            disability_status = st.radio("Do you have a disability?", ["No", "Yes"], horizontal=True)
             veteran_status = st.radio("Are you a veteran?", ["No", "Yes"], horizontal=True)
         submitted = st.form_submit_button("Find resources", type="primary", use_container_width=True)
 
