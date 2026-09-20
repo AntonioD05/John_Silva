@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import io
+import json
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from matcher import find_matches, load_programs
 
@@ -23,6 +26,8 @@ def make_profile(**overrides: object) -> dict:
         "employment_status": "Employed",
         "disability": False,
         "veteran": False,
+        "pregnant_postpartum_or_breastfeeding": False,
+        "has_child_under_5": False,
     }
     profile.update(overrides)
     return profile
@@ -74,6 +79,97 @@ class SnapMatcherTests(unittest.TestCase):
                 profile = make_profile()
                 profile.pop(missing_field)
                 self.assertEqual(find_matches(profile, self.programs), [])
+
+
+class WicMatcherTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.programs = load_programs(str(PROGRAMS_PATH))
+
+    def wic_matches(self, **overrides: object) -> list[dict]:
+        return [
+            match
+            for match in find_matches(make_profile(**overrides), self.programs)
+            if match["program_id"] == "florida-wic"
+        ]
+
+    def test_child_under_five_below_income_limit_returns_wic(self) -> None:
+        matches = self.wic_matches(has_child_under_5=True, annual_income=50000)
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0]["status"], "possible_match")
+
+    def test_pregnant_postpartum_or_breastfeeding_below_limit_returns_wic(self) -> None:
+        matches = self.wic_matches(
+            pregnant_postpartum_or_breastfeeding=True,
+            annual_income=50000,
+        )
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0]["status"], "possible_match")
+
+    def test_neither_demographic_condition_does_not_return_wic(self) -> None:
+        self.assertEqual(self.wic_matches(annual_income=27000), [])
+
+    def test_income_above_limit_does_not_return_wic(self) -> None:
+        matches = self.wic_matches(has_child_under_5=True, annual_income=50543)
+
+        self.assertEqual(matches, [])
+
+    def test_household_larger_than_eight_is_unresolved_without_threshold(self) -> None:
+        matches = self.wic_matches(
+            has_child_under_5=True,
+            household_size=9,
+            annual_income=1,
+        )
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0]["status"], "possible_match")
+        self.assertEqual(len(matches[0]["matched_reasons"]), 2)
+        self.assertTrue(
+            any(
+                "stops at a household size of eight" in note
+                and "not invented or extrapolated" in note
+                for note in matches[0]["needs_verification"]
+            )
+        )
+
+    def test_any_truthy_passes_when_other_field_is_missing(self) -> None:
+        profile = make_profile(has_child_under_5=True, annual_income=50000)
+        profile.pop("pregnant_postpartum_or_breastfeeding")
+
+        matches = [
+            match
+            for match in find_matches(profile, self.programs)
+            if match["program_id"] == "florida-wic"
+        ]
+
+        self.assertEqual(len(matches), 1)
+
+    def test_any_truthy_is_unresolved_when_no_true_and_one_field_missing(self) -> None:
+        profile = make_profile(annual_income=27000)
+        profile.pop("pregnant_postpartum_or_breastfeeding")
+
+        matches = [
+            match
+            for match in find_matches(profile, self.programs)
+            if match["program_id"] == "florida-wic"
+        ]
+
+        self.assertEqual(matches, [])
+
+    def test_load_programs_rejects_invalid_any_truthy_fields(self) -> None:
+        programs = json.loads(PROGRAMS_PATH.read_text(encoding="utf-8"))
+        wic = next(program for program in programs if program["id"] == "florida-wic")
+        demographic_rule = next(
+            rule for rule in wic["rules"] if rule["operator"] == "any_truthy"
+        )
+        demographic_rule["fields"] = []
+
+        invalid_json = io.StringIO(json.dumps(programs))
+        with mock.patch.object(Path, "open", return_value=invalid_json):
+            with self.assertRaisesRegex(ValueError, "any_truthy"):
+                load_programs("invalid-programs.json")
 
 
 if __name__ == "__main__":
