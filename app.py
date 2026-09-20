@@ -24,7 +24,7 @@ DISCLAIMER = (
 GUIDE_UI_TEXT = {
     "English": {
         "title": "Your next-step guide",
-        "button": "✨ Create my next-step guide",
+        "button": "Create my next-step guide",
         "spinner": "Organizing your next steps...",
         "question": "Useful question to ask",
         "privacy": "Optional: This sends only matched program names, descriptions, and verification notes—not your raw questionnaire answers or official links. A local fallback is used if Gemini is unavailable.",
@@ -33,7 +33,7 @@ GUIDE_UI_TEXT = {
     },
     "Spanish": {
         "title": "Su guía de próximos pasos",
-        "button": "✨ Crear mi guía de próximos pasos",
+        "button": "Crear mi guía de próximos pasos",
         "spinner": "Organizando sus próximos pasos...",
         "question": "Pregunta útil para hacer",
         "privacy": "Opcional: cuando Gemini está configurado, solo se envían los nombres, descripciones y notas de verificación de los programas, no sus respuestas completas ni los enlaces oficiales. Si Gemini no está disponible, se usa una guía local.",
@@ -42,7 +42,7 @@ GUIDE_UI_TEXT = {
     },
     "Haitian Creole": {
         "title": "Gid pou pwochen etap ou",
-        "button": "✨ Kreye gid pou pwochen etap mwen",
+        "button": "Kreye gid pou pwochen etap mwen",
         "spinner": "N ap òganize pwochen etap ou yo...",
         "question": "Kesyon itil pou poze",
         "privacy": "Opsyonèl: lè Gemini konfigire, se sèlman non pwogram yo, deskripsyon yo, ak nòt verifikasyon yo ki voye, pa repons konplè ou yo oswa lyen ofisyèl yo. Si Gemini pa disponib, aplikasyon an itilize yon gid lokal.",
