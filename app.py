@@ -30,67 +30,6 @@ def inject_styles() -> None:
         )
 
 
-def demo_matches(profile: dict[str, Any]) -> list[dict[str, Any]]:
-    """Provide a deterministic UI fixture until Developer B supplies the matcher."""
-    matches = [
-        {
-            "program_id": "snap-demo",
-            "name": "Supplemental Nutrition Assistance Program (SNAP)",
-            "category": "Food",
-            "description": "Monthly food assistance for eligible households through Florida DCF.",
-            "status": "potential_match",
-            "score": 4 if profile["annual_income"] < 40000 else 2,
-            "matched_reasons": [
-                "You live in Florida and reported a household size of "
-                f"{profile['household_size'] }.",
-                "Your reported income is worth checking against current SNAP limits.",
-            ],
-            "needs_verification": [
-                "Student, work, and household-income rules may affect the final decision.",
-            ],
-            "source_name": "Florida Department of Children and Families",
-            "source_url": "https://www.myflfamilies.com/assistance-services/food-stamp-program-snap",
-            "apply_url": "https://www.myflorida.com/accessflorida/",
-            "last_checked": "2026-09-20",
-        },
-        {
-            "program_id": "kidcare-demo",
-            "name": "Florida KidCare",
-            "category": "Health",
-            "description": "Low-cost health and dental coverage options for children.",
-            "status": "potential_match" if profile["dependent_children"] else "possible_match",
-            "score": 3 if profile["dependent_children"] else 1,
-            "matched_reasons": [
-                "Your profile indicates a household with children." if profile["dependent_children"] else "Florida KidCare is a broad resource for households to investigate.",
-            ],
-            "needs_verification": [
-                "Coverage and premiums depend on child age, household income, and program availability.",
-            ],
-            "source_name": "Florida KidCare",
-            "source_url": "https://www.floridakidcare.org/",
-            "apply_url": "https://www.floridakidcare.org/apply",
-            "last_checked": "2026-09-20",
-        },
-        {
-            "program_id": "alachua-social-services-demo",
-            "name": "Alachua County Social Services",
-            "category": "Local support",
-            "description": "A local starting point for county assistance and service referrals.",
-            "status": "possible_match",
-            "score": 2,
-            "matched_reasons": ["You reported a Gainesville-area ZIP code."],
-            "needs_verification": [
-                "A county staff member will confirm which services fit your situation.",
-            ],
-            "source_name": "Alachua County",
-            "source_url": "https://alachuacounty.us/Depts/CommunitySupportServices/SocialServices/Pages/SocialServices.aspx",
-            "apply_url": "https://alachuacounty.us/Depts/CommunitySupportServices/Pages/CommunitySupportServices.aspx",
-            "last_checked": "2026-09-20",
-        },
-    ]
-    return matches
-
-
 def get_matches(profile: dict[str, Any]) -> tuple[list[dict[str, Any]], bool, str | None]:
     """Call Developer B's contract when available, with a local UI fixture as fallback."""
     try:
@@ -201,6 +140,7 @@ def render_questionnaire() -> None:
             return
         st.session_state["profile"] = profile
         st.session_state["show_results"] = True
+        st.session_state["scroll_to_results"] = True
 
 
 def normalize_match(match: dict[str, Any]) -> dict[str, Any]:
@@ -212,7 +152,6 @@ def normalize_match(match: dict[str, Any]) -> dict[str, Any]:
 
 def render_result_card(match: dict[str, Any]) -> None:
     match = normalize_match(match)
-    status = "Potential match" if match.get("status") == "potential_match" else "Worth investigating"
     reasons = match.get("matched_reasons", [])
     notes = match.get("needs_verification", match.get("verification_notes", []))
     source_url = match.get("source_url", "#")
@@ -225,7 +164,7 @@ def render_result_card(match: dict[str, Any]) -> None:
     st.markdown(
         f"""
         <article class="resource-card">
-            <div class="card-meta"><span class="category">{category}</span><span class="status">{status}</span></div>
+            <div class="card-meta"><span class="category">{category}</span></div>
             <h3>{name}</h3>
             <p class="description">{description}</p>
             <details><summary>Why am I seeing this?</summary>
@@ -265,6 +204,23 @@ def render_results() -> None:
             render_result_card(match)
 
 
+def scroll_to_results() -> None:
+    """Move the browser viewport to the report after a successful submission."""
+    st.html(
+        """
+        <script>
+        window.setTimeout(() => {
+            const results = window.parent.document.getElementById("results-top");
+            if (results) {
+                results.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        }, 100);
+        </script>
+        """,
+        unsafe_allow_javascript=True,
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title="Gainesville Resource Navigator", page_icon="GR", layout="wide", initial_sidebar_state="collapsed")
     inject_styles()
@@ -272,8 +228,12 @@ def main() -> None:
     render_questionnaire()
     if st.session_state.get("show_results"):
         st.divider()
+        should_scroll_to_results = st.session_state.pop("scroll_to_results", False)
+        st.markdown('<div id="results-top"></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="color: red;"><strong>DISCLAIMER: Please verify before relying on this information.</strong><br>{DISCLAIMER}</div>', unsafe_allow_html=True)
         render_results()
-        st.markdown(f'<div class="disclaimer"><strong>Please verify before relying on this information.</strong><br>{DISCLAIMER}</div>', unsafe_allow_html=True)
+        if should_scroll_to_results:
+            scroll_to_results()
         if st.button("Start over"):
             st.session_state.clear()
             st.rerun()
